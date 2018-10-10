@@ -15,6 +15,7 @@ board = chess.Board()
 # board.pop()
 # print(board)
 
+
 deadline = 0
 
 
@@ -127,14 +128,56 @@ def playMoveAlphaBeta(b):
     b.push(best_move)
 
 
+#Hash--------------------------------------------------------------------------
+def initHash(size):
+    global table
+    table = [[0 for k in range(12)] for k in range(64)]
+    for i in range(64):
+        for j in range(12):
+            table[i][j] = randint(0,2**20)
+    global hashTable
+    hashTable = [None for k in range(size)]#bestmove, alpha, beta, depth
+    
+
+def setHash(value, data):
+    value = value % len(hashTable)
+    hashTable[value] = data
+
+def getHash(board):
+    return hashTable[getHashValue(board)]
+    
+def getPieceValue(p):
+    res = p.piece_type
+    if p.color:
+        res += 6
+    return res
+
+def getHashValue(b):
+    hash = 0
+    for k in range(64):
+        if board.piece_at(k) != None:
+            v = getPieceValue(board.piece_at(k))
+            hash = hash ^ table[k][v]
+    return hash
+
+def getKnownSituation(board, current_depth):
+    tmp = getHash(board)
+    if tmp != None and tmp[3] >= current_depth:
+        return tmp
+    
+    return None
+    
+    
+#EndHash-----------------------------------------------------------------------
+
 def playMoveAlphaBetaDeepening(b, available_time = 10):
     if b.is_game_over():
         return
-    global hash
-    hash = []
+    
     global deadline
     init_time = time.time()
     deadline = init_time + available_time
+    
     best_move = None
     loss = -float("inf")
     alpha = -float("inf")
@@ -151,6 +194,7 @@ def playMoveAlphaBetaDeepening(b, available_time = 10):
                     loss = current_loss
                     best_move = m
                 b.pop()
+            setHash(getHashValue(b), [best_move, alpha, beta, current_depth])
             current_depth += 1
         except RuntimeError:
             b.pop()
@@ -168,6 +212,7 @@ def MaxValue(b, depth, alpha, beta):
         if(time.time() > deadline):
             raise RuntimeError()
         b.push(m)
+        
         try:
             alpha = max(alpha, MinValue(b, depth - 1, alpha, beta))
         except RuntimeError as e:
